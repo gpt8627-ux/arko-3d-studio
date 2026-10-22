@@ -592,7 +592,7 @@ footer {
         <div class="card">
           <div class="metric-title">Saldo de caja fuerte</div>
           <div class="metric" id="saldoPanel">Bs 0,00</div>
-          <div class="small">Saldo compartido entre dispositivos</div>
+          <div class="small">Saldo de caja fuerte</div>
         </div>
 
         <div class="card">
@@ -848,7 +848,7 @@ footer {
         <h3>Historial financiero</h3>
 
         <p class="small">
-          Movimientos registrados en la caja fuerte empresarial.
+          Movimientos de la caja fuerte.
         </p>
 
         <div class="table-wrap">
@@ -956,68 +956,47 @@ const socios = {
 
 let usuarioActual = null;
 
-const db = window.supabase.createClient("https://xybvjgjdpyvdhkdozvvr.supabase.co", "sb_publishable_uZV9KNRPuyFnzXUu8gvqfQ_1eGzprUb");
-let datosJornadas = [], datosCaja = [], integrantes = [], perfilActual = null, cargando = false;
-let conectado = false;
-function avisoError(error){ console.error(error); alert("No se pudo sincronizar con Supabase: " + (error?.message||error)); }
-async function autorizarDispositivo(){
-  const {data:{user}} = await db.auth.getUser();
-  if(user) return user;
-  const email = prompt("Configuración inicial de este dispositivo (una sola vez): correo de tu cuenta Supabase");
-  if(!email) throw new Error("Se necesita autenticar este dispositivo para sincronizar.");
-  const password = prompt("Contraseña de tu cuenta Supabase (se conservará la sesión; el acceso visible seguirá siendo con PIN)");
-  if(!password) throw new Error("No se proporcionó contraseña.");
-  const {data,error}=await db.auth.signInWithPassword({email,password});
-  if(error) throw error;
-  return data.user;
-}
-async function iniciarSincronizacion(){
-  const user = await autorizarDispositivo();
-  const {data:rows,error} = await db.from('integrantes').select('id,nombre,auth_user_id,rol').eq('rol','socio');
-  if(error)throw error;
-  integrantes=rows||[];
-  perfilActual=integrantes.find(x=>x.auth_user_id===user.id);
-  if(!perfilActual) throw new Error('El usuario de Supabase no está vinculado a un socio.');
-  // La sesión auténtica debe corresponder al PIN introducido.
-  const corresponde = /alejandro/i.test(perfilActual.nombre) ? 'alejandro' : /sharon/i.test(perfilActual.nombre) ? 'sharon' : null;
-  if(corresponde!==usuarioActual) throw new Error('El PIN corresponde a otro socio. Cierra sesión en Supabase para vincular el dispositivo a ese socio.');
-  conectado=true;
-  await refrescarDatos();
-}
-function socioPorId(id){const x=integrantes.find(r=>r.id===id);return x ? (/sharon/i.test(x.nombre)?'sharon':'alejandro') : null;}
-async function refrescarDatos(){
-  if(!conectado||cargando)return;
-  cargando=true;
-  try{
-    const [a,b]=await Promise.all([
-      db.from('jornadas').select('id,integrante_id,entrada,salida').order('entrada',{ascending:true}),
-      db.from('movimientos_caja').select('id,integrante_id,tipo,monto,concepto,fecha').order('fecha',{ascending:true})
-    ]);
-    if(a.error)throw a.error;if(b.error)throw b.error;
-    datosJornadas=(a.data||[]).map(x=>({...x,socio:socioPorId(x.integrante_id),fecha:fechaLocal(new Date(x.entrada))}));
-    datosCaja=(b.data||[]).map(x=>({...x,tipo:x.tipo==='egreso'?'retiro':x.tipo,monto:Number(x.monto),responsable:socioPorId(x.integrante_id)}));
-    actualizarTodo();
-  }catch(e){conectado=false;avisoError(e);}
-  finally{cargando=false;}
-}
 const CLAVE_ASISTENCIA = "arko_asistencia_demo_v1";
 const CLAVE_CAJA = "arko_caja_demo_v1";
 
-/* ALMACENAMIENTO LOCAL */
-
-function leerDatos(clave) {
-  try {
-    const datos = JSON.parse(localStorage.getItem(clave));
-    return Array.isArray(datos) ? datos : [];
-  } catch {
-    return [];
-  }
+/* DATOS COMPARTIDOS: SUPABASE (SIN CAMBIAR ACCESO POR PIN) */
+const SUPABASE_URL="https://xybvjgjdpyvdhkdozvvr.supabase.co";
+const SUPABASE_KEY="sb_publishable_uZV9KNRPuyFnzXUu8gvqfQ_1eGzprUb";
+const base=window.supabase?.createClient(SUPABASE_URL,SUPABASE_KEY);
+let datosAsistencia=[], datosCaja=[], idsSocios={}, sincronizacionActiva=false;
+let sincronizacionEnCurso=false;
+function leerDatos(clave){return clave===CLAVE_ASISTENCIA?datosAsistencia:datosCaja;}
+function informarError(error){console.error('Supabase:',error);alert('No se pudo sincronizar con Supabase: '+(error?.message||error));}
+async function sincronizar(){
+  if(!usuarioActual||sincronizacionEnCurso||!base)return;
+  sincronizacionEnCurso=true;
+  try{
+    const [integrantes,jornadasDB,cajaDB]=await Promise.all([
+      base.from('integrantes').select('id,nombre,rol'),
+      base.from('jornadas').select('id,integrante_id,entrada,salida').order('entrada',{ascending:true}),
+      base.from('movimientos_caja').select('id,integrante_id,tipo,monto,concepto,fecha').order('fecha',{ascending:true})
+    ]);
+    for(const r of [integrantes,jornadasDB,cajaDB])if(r.error)throw r.error;
+    const mapa={};idsSocios={};
+    for(const x of integrantes.data){
+      const nombre=(x.nombre||'').toLowerCase();
+      const perfil=nombre.includes('sharon')?'sharon':nombre.includes('alejandro')?'alejandro':null;
+      if(perfil){mapa[x.id]=perfil;idsSocios[perfil]=x.id;}
+    }
+    datosAsistencia=jornadasDB.data.map(j=>({...j,socio:mapa[j.integrante_id],fecha:fechaLocal(new Date(j.entrada))}));
+    datosCaja=cajaDB.data.map(m=>({...m,tipo:m.tipo==='egreso'?'retiro':m.tipo,monto:Number(m.monto),responsable:mapa[m.integrante_id]}));
+    sincronizacionActiva=true;
+    actualizarTodo();
+  }catch(error){sincronizacionActiva=false;console.error('Error de sincronización',error);}
+  finally{sincronizacionEnCurso=false;}
 }
-
-function guardarDatos(clave,datos) {
-  localStorage.setItem(clave,JSON.stringify(datos));
+async function verificarConexion(){
+  if(!base){informarError('No se pudo cargar la biblioteca Supabase.');return false;}
+  await sincronizar();
+  if(!sincronizacionActiva){informarError('Supabase no permite consultar las tablas con los permisos actuales. No se guardará nada localmente.');return false;}
+  if(!idsSocios[usuarioActual]){informarError('No se encontró el socio en la tabla integrantes.');return false;}
+  return true;
 }
-
 function dinero(valor) {
   return "Bs " + Number(valor).toLocaleString("es-BO",{
     minimumFractionDigits:2,
@@ -1059,7 +1038,7 @@ function metaDia(fecha = new Date()) {
    Los códigos son visibles en el código fuente y NO autentican con Supabase. */
 const CODIGOS_ACCESO = { "4590": "alejandro", "0666": "sharon" };
 function mensajeAcceso(m){ document.getElementById('mensajeAcceso').textContent=m; }
-async function ingresarConCodigo(){
+function ingresarConCodigo(){
   const campo=document.getElementById('codigoAcceso');
   const identidad=CODIGOS_ACCESO[campo.value.trim()];
   if(!identidad){ mensajeAcceso('Código incorrecto. Inténtalo nuevamente.'); campo.value=''; return; }
@@ -1072,13 +1051,8 @@ async function ingresarConCodigo(){
   document.getElementById('bienvenida').textContent=socios[identidad].bienvenida;
   document.getElementById('socioAsistencia').textContent=socios[identidad].nombre;
   document.getElementById('responsableMovimiento').textContent=socios[identidad].nombre;
-  try { await iniciarSincronizacion(); }
-  catch(e){
-    conectado=false; usuarioActual=null;
-    document.getElementById('app').classList.add('hidden');
-    document.getElementById('login').classList.remove('hidden');
-    mensajeAcceso('No se pudo conectar: '+e.message);
-  }
+  actualizarTodo();
+  sincronizar().then(()=>{if(!sincronizacionActiva) informarError("No hay acceso a las tablas de Supabase con los permisos actuales.");});
 }
 function cerrarSesion(){
   usuarioActual=null;
@@ -1130,7 +1104,9 @@ function irA(id) {
 
 /* CONTROL LABORAL */
 
-function jornadas() { return datosJornadas; }
+function jornadas() {
+  return leerDatos(CLAVE_ASISTENCIA);
+}
 
 function jornadaAbierta() {
   return jornadas().find(j=>
@@ -1139,19 +1115,22 @@ function jornadaAbierta() {
 }
 
 async function registrarEntrada(){
-  if(!conectado)return;
-  if(metaDia()===0){alert('El domingo está establecido como día de descanso.');return;}
-  await refrescarDatos();if(!conectado)return;
+  if(!usuarioActual||metaDia()===0)return;
+  if(!await verificarConexion())return;
   if(jornadaAbierta()){alert('Ya tienes una entrada abierta.');return;}
-  const {error}=await db.from('jornadas').insert({integrante_id:perfilActual.id,entrada:new Date().toISOString()});
-  if(error){avisoError(error);return;}await refrescarDatos();
+  const {error}=await base.from('jornadas').insert({integrante_id:idsSocios[usuarioActual],entrada:new Date().toISOString()});
+  if(error){informarError(error);return;}
+  await sincronizar();alert('Entrada registrada correctamente.');
 }
 async function registrarSalida(){
-  if(!conectado)return;await refrescarDatos();if(!conectado)return;
-  const abierta=jornadaAbierta();if(!abierta){alert('No tienes una jornada abierta.');return;}
-  const {error}=await db.from('jornadas').update({salida:new Date().toISOString()}).eq('id',abierta.id).is('salida',null);
-  if(error){avisoError(error);return;}await refrescarDatos();
+  if(!usuarioActual||!await verificarConexion())return;
+  const abierta=jornadaAbierta();
+  if(!abierta){alert('No tienes una jornada abierta.');return;}
+  const {error}=await base.from('jornadas').update({salida:new Date().toISOString()}).eq('id',abierta.id).is('salida',null);
+  if(error){informarError(error);return;}
+  await sincronizar();alert('Salida registrada correctamente.');
 }
+
 function actualizarAsistencia() {
   if(!usuarioActual) return;
 
@@ -1267,28 +1246,30 @@ function actualizarHistorialHoras() {
 
 /* CAJA FUERTE */
 
-function movimientosCaja() { return datosCaja; }
+function movimientosCaja() {
+  return leerDatos(CLAVE_CAJA);
+}
 
 async function guardarMovimiento(){
-  if(!conectado)return;
+  if(!usuarioActual||!await verificarConexion())return;
   const tipo=document.getElementById('tipoMovimiento').value;
   const monto=Number(document.getElementById('montoMovimiento').value);
   const concepto=document.getElementById('conceptoMovimiento').value.trim();
   if(!Number.isFinite(monto)||monto<=0){alert('Introduce un monto válido.');return;}
   if(!concepto){alert('Introduce el concepto del movimiento.');return;}
-  await refrescarDatos();if(!conectado)return;
-  const saldo=movimientosCaja().reduce((a,x)=>a+(x.tipo==='ingreso'?x.monto:-x.monto),0);
+  const saldo=datosCaja.reduce((total,m)=>total+(m.tipo==='ingreso'?m.monto:-m.monto),0);
   if(tipo==='retiro'&&monto>saldo+0.000001){alert('El retiro supera el saldo disponible.');return;}
   if(!confirm(`¿Confirmas el ${tipo} de ${dinero(monto)}?`))return;
-  const {error}=await db.from('movimientos_caja').insert({
-    integrante_id:perfilActual.id,tipo:tipo==='retiro'?'egreso':'ingreso',
+  const {error}=await base.from('movimientos_caja').insert({
+    integrante_id:idsSocios[usuarioActual],tipo:tipo==='retiro'?'egreso':'ingreso',
     monto:Math.round(monto*100)/100,concepto,fecha:new Date().toISOString()
   });
-  if(error){avisoError(error);return;}
+  if(error){informarError(error);return;}
   document.getElementById('montoMovimiento').value='';
   document.getElementById('conceptoMovimiento').value='';
-  await refrescarDatos();
+  await sincronizar();alert('Movimiento registrado correctamente.');
 }
+
 function actualizarCaja() {
   const datos = movimientosCaja();
 
@@ -1370,7 +1351,7 @@ function actualizarTodo() {
 setInterval(()=>{
   if(usuarioActual) actualizarAsistencia();
 },1000);
-setInterval(()=>{if(usuarioActual&&conectado)refrescarDatos();},15000);
+setInterval(()=>{if(usuarioActual)sincronizar();},15000);
 
 </script>
 
