@@ -1,1 +1,351 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ARKO 3D Studio | Administración</title>
 
+<style>
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #f3f5f9;
+    color: #263238;
+}
+
+header {
+    background: #172333;
+    color: white;
+    padding: 25px;
+    text-align: center;
+}
+
+header h1 {
+    margin: 0;
+    font-size: 28px;
+    letter-spacing: 2px;
+}
+
+header p {
+    color: #cbd5e1;
+}
+
+nav {
+    background: #243449;
+    padding: 15px;
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+nav button {
+    background: transparent;
+    color: white;
+    border: 1px solid #60758b;
+    padding: 12px 18px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+nav button:hover {
+    background: #405773;
+}
+
+main {
+    max-width: 1100px;
+    margin: auto;
+    padding: 25px;
+}
+
+section {
+    display: none;
+}
+
+section.activa {
+    display: block;
+}
+
+.tarjeta {
+    background: white;
+    border-radius: 12px;
+    padding: 25px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+}
+
+.saldo {
+    font-size: 38px;
+    font-weight: bold;
+    color: #172333;
+    margin: 20px 0;
+}
+
+.etiqueta {
+    color: #64748b;
+    font-size: 14px;
+}
+
+input, select, textarea {
+    width: 100%;
+    padding: 12px;
+    margin-top: 8px;
+    margin-bottom: 18px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font-size: 15px;
+}
+
+label {
+    font-weight: bold;
+}
+
+.boton {
+    background: #172333;
+    color: white;
+    border: none;
+    padding: 14px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.boton:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.tabla-contenedor {
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+th, td {
+    padding: 14px;
+    text-align: left;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+th {
+    background: #f1f5f9;
+}
+
+.administrador {
+    padding: 18px;
+    background: #f8fafc;
+    border-radius: 8px;
+    margin-bottom: 12px;
+}
+
+.aviso {
+    text-align: center;
+    color: #64748b;
+    font-size: 13px;
+    margin-top: 30px;
+}
+
+.estado {
+    background: #fff7ed;
+    color: #9a3412;
+    padding: 12px;
+    border-radius: 6px;
+    margin-bottom: 20px;
+}
+
+@media(max-width:600px) {
+    header h1 {
+        font-size: 23px;
+    }
+
+    main {
+        padding: 15px;
+    }
+
+    .saldo {
+        font-size: 32px;
+    }
+
+    nav button {
+        flex: 1 1 40%;
+    }
+}
+</style>
+</head>
+
+<body>
+
+<header>
+    <h1>ARKO 3D STUDIO</h1>
+    <p>Sistema de Gestión Administrativa y Financiera</p>
+</header>
+
+<nav>
+    <button onclick="mostrar('inicio')">Panel principal</button>
+    <button onclick="mostrar('caja')">Caja fuerte</button>
+    <button onclick="mostrar('movimientos')">Ingresos y retiros</button>
+    <button onclick="mostrar('historial')">Historial</button>
+    <button onclick="mostrar('administradores')">Administradores</button>
+</nav>
+
+<main>
+
+<div class="estado">
+    Versión de demostración. Los movimientos todavía no están habilitados.
+</div>
+
+<!-- PANEL PRINCIPAL -->
+<section id="inicio" class="activa">
+    <div class="tarjeta">
+        <h2>Panel principal</h2>
+        <p>Bienvenido al sistema administrativo de ARKO 3D Studio.</p>
+        <p>
+            Desde esta plataforma podrás consultar el dinero disponible
+            en la caja fuerte, registrar ingresos y retiros, y revisar
+            el historial de movimientos cuando conectemos Supabase.
+        </p>
+    </div>
+
+    <div class="tarjeta">
+        <h3>Saldo de caja fuerte</h3>
+        <p class="etiqueta">Saldo inicial</p>
+        <div class="saldo">Bs 0.00</div>
+        <button class="boton" onclick="mostrar('caja')">
+            Ver caja fuerte
+        </button>
+    </div>
+</section>
+
+<!-- CAJA FUERTE -->
+<section id="caja">
+    <div class="tarjeta">
+        <h2>Caja fuerte</h2>
+        <p class="etiqueta">Dinero disponible</p>
+        <div class="saldo">Bs 0.00</div>
+        <p>
+            El saldo comenzará en Bs 0.00 y se actualizará
+            automáticamente cuando habilitemos los movimientos.
+        </p>
+    </div>
+</section>
+
+<!-- INGRESOS Y RETIROS -->
+<section id="movimientos">
+    <div class="tarjeta">
+        <h2>Registrar movimiento</h2>
+
+        <label>Administrador</label>
+        <select disabled>
+            <option>Seleccionar administrador</option>
+            <option>Alejandro</option>
+            <option>Sharon</option>
+        </select>
+
+        <label>Tipo de movimiento</label>
+        <select disabled>
+            <option>Ingreso</option>
+            <option>Retiro</option>
+        </select>
+
+        <label>Monto (Bs)</label>
+        <input type="number"
+               placeholder="Ejemplo: 150.00"
+               min="0.01"
+               step="0.01"
+               disabled>
+
+        <label>Motivo del movimiento</label>
+        <textarea
+            placeholder="Describe el motivo del ingreso o retiro"
+            disabled></textarea>
+
+        <button class="boton" disabled>
+            Registrar movimiento
+        </button>
+
+        <p class="etiqueta">
+            El registro estará disponible cuando conectemos Supabase.
+        </p>
+    </div>
+</section>
+
+<!-- HISTORIAL -->
+<section id="historial">
+    <div class="tarjeta">
+        <h2>Historial de movimientos</h2>
+
+        <div class="tabla-contenedor">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Administrador</th>
+                        <th>Movimiento</th>
+                        <th>Monto</th>
+                        <th>Motivo</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td colspan="5">
+                            Todavía no existen movimientos registrados.
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+
+<!-- ADMINISTRADORES -->
+<section id="administradores">
+    <div class="tarjeta">
+        <h2>Administradores</h2>
+
+        <div class="administrador">
+            <strong>Alejandro</strong>
+            <p>Director Ejecutivo (CEO)</p>
+        </div>
+
+        <div class="administrador">
+            <strong>Sharon</strong>
+            <p>Directora Financiera (CFO)</p>
+        </div>
+    </div>
+</section>
+
+<p class="aviso">
+    ARKO 3D Studio — Sistema Administrativo<br>
+    Versión inicial de demostración.
+</p>
+
+</main>
+
+<script>
+function mostrar(id) {
+    document.querySelectorAll("section").forEach(function(seccion) {
+        seccion.classList.remove("activa");
+    });
+
+    const destino = document.getElementById(id);
+
+    if (destino) {
+        destino.classList.add("activa");
+    }
+
+    window.scrollTo({
+        top: 0,
+        behavior: "smooth"
+    });
+}
+</script>
+
+</body>
+</html>
