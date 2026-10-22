@@ -456,9 +456,9 @@ footer {
       Sistema de Gestión Empresarial
     </p>
 
-    <label for="correoAcceso">Correo electrónico del socio</label>
-    <input id="correoAcceso" type="email" autocomplete="email" placeholder="tu-correo@gmail.com" style="width:100%;padding:14px;border-radius:10px;margin:10px 0 16px;background:#10131b;color:white;border:1px solid #394153">
-    <button id="btnAcceso" class="btn full" onclick="enviarEnlace()">Enviar enlace de acceso</button>
+    <label for="codigoAcceso">Código de acceso</label>
+    <input id="codigoAcceso" type="password" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="Introduce tu código de 4 dígitos" style="width:100%;padding:14px;border-radius:10px;margin:10px 0 16px;background:#10131b;color:white;border:1px solid #394153" onkeydown="if(event.key==='Enter') ingresarConCodigo()">
+    <button id="btnAcceso" class="btn full" onclick="ingresarConCodigo()">Ingresar al sistema</button>
     <p id="mensajeAcceso" class="small" role="status" style="margin-top:14px"></p>
 
     <p class="small" style="margin-top:25px">
@@ -920,7 +920,6 @@ footer {
 
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 
 /* CONFIGURACIÓN DE SOCIOS */
@@ -995,30 +994,15 @@ function metaDia(fecha = new Date()) {
   return 4;
 }
 
-/* ACCESO REAL MEDIANTE SUPABASE AUTH — FASE 1 */
-const URL_SUPABASE = 'https://xybvjgjdpyvdhkdozvvr.supabase.co';
-const CLAVE_PUBLICA = 'sb_publishable_uZV9KNRPuyFnzXUu8gvqfQ_1eGzprUb';
-const cliente = window.supabase.createClient(URL_SUPABASE, CLAVE_PUBLICA, {
-  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
-});
-const correosSocios = {
-  'ans509862@gmail.com':'alejandro',
-  'castroteransharon@gmail.com':'sharon'
-};
-function mensajeAcceso(m){document.getElementById('mensajeAcceso').textContent=m;}
-async function enviarEnlace(){
-  const correo=document.getElementById('correoAcceso').value.trim().toLowerCase();
-  if(!correosSocios[correo]){mensajeAcceso('Este correo no está autorizado para ARKO.');return;}
-  const boton=document.getElementById('btnAcceso'); boton.disabled=true;
-  mensajeAcceso('Solicitando enlace de acceso…');
-  try {
-    const {error}=await cliente.auth.signInWithOtp({email:correo,options:{emailRedirectTo:'https://gpt8627-ux.github.io/arko-3d-studio/',shouldCreateUser:false}});
-    if(error) throw error;
-    mensajeAcceso('Revisa tu correo y abre el enlace desde el dispositivo donde deseas ingresar.');
-  }catch(e){mensajeAcceso('No se pudo enviar el enlace: '+e.message);}
-  finally{boton.disabled=false;}
-}
-function ingresarConIdentidad(identidad){
+/* ACCESO PROVISIONAL POR CÓDIGO — SOLO INTERFAZ LOCAL.
+   Los códigos son visibles en el código fuente y NO autentican con Supabase. */
+const CODIGOS_ACCESO = { "4590": "alejandro", "0666": "sharon" };
+function mensajeAcceso(m){ document.getElementById('mensajeAcceso').textContent=m; }
+function ingresarConCodigo(){
+  const campo=document.getElementById('codigoAcceso');
+  const identidad=CODIGOS_ACCESO[campo.value.trim()];
+  if(!identidad){ mensajeAcceso('Código incorrecto. Inténtalo nuevamente.'); campo.value=''; return; }
+  campo.value=''; mensajeAcceso('');
   usuarioActual=identidad;
   document.getElementById('login').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
@@ -1029,24 +1013,13 @@ function ingresarConIdentidad(identidad){
   document.getElementById('responsableMovimiento').textContent=socios[identidad].nombre;
   actualizarTodo();
 }
-async function verificarSesion(){
-  try{
-    const {data:{user},error}=await cliente.auth.getUser();
-    if(error||!user){usuarioActual=null;document.getElementById('app').classList.add('hidden');document.getElementById('login').classList.remove('hidden');return;}
-    const identidad=correosSocios[(user.email||'').toLowerCase()];
-    if(!identidad){await cliente.auth.signOut();mensajeAcceso('Esta cuenta no está autorizada.');return;}
-    ingresarConIdentidad(identidad);
-  }catch(e){mensajeAcceso('Error al verificar sesión: '+e.message);}
-}
-async function cerrarSesion(){
-  await cliente.auth.signOut(); usuarioActual=null;
+function cerrarSesion(){
+  usuarioActual=null;
   document.getElementById('app').classList.add('hidden');
   document.getElementById('login').classList.remove('hidden');
-  document.getElementById('correoAcceso').value='';
-  mensajeAcceso('Sesión cerrada.');
+  document.getElementById('codigoAcceso').value='';
+  mensajeAcceso('');
 }
-cliente.auth.onAuthStateChange(()=>{setTimeout(verificarSesion,0);});
-verificarSesion();
 
 /* NAVEGACIÓN */
 
