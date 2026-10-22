@@ -476,8 +476,8 @@ footer {
       Sistema de Gestión Empresarial
     </p>
 
-    <label for="correoAcceso">Correo electrónico</label><input id="correoAcceso" type="email" autocomplete="username" placeholder="Correo del socio" style="width:100%;padding:14px;border-radius:10px;margin:10px 0 16px;background:#10131b;color:white;border:1px solid #394153"> <label for="codigoAcceso">Contraseña de Supabase</label>
-    <input id="codigoAcceso" type="password" autocomplete="current-password" placeholder="Contraseña personal" style="width:100%;padding:14px;border-radius:10px;margin:10px 0 16px;background:#10131b;color:white;border:1px solid #394153" onkeydown="if(event.key==='Enter') ingresarConCodigo()">
+    <label for="codigoAcceso">Código de acceso</label>
+    <input id="codigoAcceso" type="password" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="Introduce tu código de 4 dígitos" style="width:100%;padding:14px;border-radius:10px;margin:10px 0 16px;background:#10131b;color:white;border:1px solid #394153" onkeydown="if(event.key==='Enter') ingresarConCodigo()">
     <button id="btnAcceso" class="btn full" onclick="ingresarConCodigo()">Ingresar al sistema</button>
     <p id="mensajeAcceso" class="small" role="status" style="margin-top:14px"></p>
 
@@ -570,7 +570,8 @@ footer {
       </div>
 
     </header>
-<!-- PANEL PRINCIPAL -->
+
+    <!-- PANEL PRINCIPAL -->
 
     <section id="panel" class="section active">
 
@@ -591,7 +592,7 @@ footer {
         <div class="card">
           <div class="metric-title">Saldo de caja fuerte</div>
           <div class="metric" id="saldoPanel">Bs 0,00</div>
-          <div class="small">Saldo compartido en Supabase</div>
+          <div class="small">Saldo registrado en este dispositivo</div>
         </div>
 
         <div class="card">
@@ -935,7 +936,6 @@ footer {
 
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 
 /* CONFIGURACIÓN DE SOCIOS */
@@ -955,53 +955,24 @@ const socios = {
 
 let usuarioActual = null;
 
-const SUPABASE_URL = "https://xybvjgjdpyvdhkdozvvr.supabase.co";
-const SUPABASE_KEY = "sb_publishable_uZV9KNRPuyFnzXUu8gvqfQ_1eGzprUb";
-const db = window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
-let integranteActual=null;
-let integrantesPorId={};
-let datosJornadas=[];
-let datosMovimientos=[];
-let sincronizando=false;
-const correoPerfil={
-  "ans509862@gmail.com":"alejandro",
-  "castroteransharon@gmail.com":"sharon"
-};
-function jornadas(){return datosJornadas;}
-function movimientosCaja(){return datosMovimientos;}
-function estadoConexion(m){
-  if(m.startsWith("ERROR")){
-    console.error(m);
-    const el=document.getElementById("syncError");
-    if(el){el.textContent=m;el.hidden=false;}
-  } else {const el=document.getElementById("syncError");if(el)el.hidden=true;}
+const CLAVE_ASISTENCIA = "arko_asistencia_demo_v1";
+const CLAVE_CAJA = "arko_caja_demo_v1";
+
+/* ALMACENAMIENTO LOCAL */
+
+function leerDatos(clave) {
+  try {
+    const datos = JSON.parse(localStorage.getItem(clave));
+    return Array.isArray(datos) ? datos : [];
+  } catch {
+    return [];
+  }
 }
-async function cargarDatos(){
-  if(!integranteActual || sincronizando)return;
-  sincronizando=true;
-  try{
-    const [rj,rm]=await Promise.all([
-      db.from("jornadas").select("id,integrante_id,entrada,salida").order("entrada",{ascending:true}),
-      db.from("movimientos_caja").select("id,integrante_id,tipo,concepto,monto,fecha").order("fecha",{ascending:true})
-    ]);
-    if(rj.error)throw rj.error;
-    if(rm.error)throw rm.error;
-    datosJornadas=rj.data.map(j=>({
-      ...j,socio:integrantesPorId[j.integrante_id],
-      fecha:fechaLocal(new Date(j.entrada))
-    }));
-    datosMovimientos=rm.data.map(m=>({
-      ...m,tipo:m.tipo==="egreso"?"retiro":m.tipo,
-      responsable:integrantesPorId[m.integrante_id],
-      monto:Number(m.monto)
-    }));
-    estadoConexion("Conectado a Supabase · Registros compartidos entre dispositivos. Actualización automática cada 15 segundos.");
-    actualizarTodo();
-  }catch(e){
-    console.error(e);
-    estadoConexion("ERROR DE SINCRONIZACIÓN: "+e.message+" · No registres operaciones hasta resolverlo.");
-  }finally{sincronizando=false;}
+
+function guardarDatos(clave,datos) {
+  localStorage.setItem(clave,JSON.stringify(datos));
 }
+
 function dinero(valor) {
   return "Bs " + Number(valor).toLocaleString("es-BO",{
     minimumFractionDigits:2,
@@ -1039,62 +1010,33 @@ function metaDia(fecha = new Date()) {
   return 4;
 }
 
-/* INICIO DE SESIÓN REAL: Supabase Auth + identificación por auth_user_id */
-function mensajeAcceso(m){document.getElementById("mensajeAcceso").textContent=m;}
-async function ingresarConCodigo(){
-  const correo=document.getElementById("correoAcceso").value.trim().toLowerCase();
-  const clave=document.getElementById("codigoAcceso").value;
-  if(!correoPerfil[correo]){mensajeAcceso("Este correo no está autorizado.");return;}
-  const boton=document.getElementById("btnAcceso");
-  boton.disabled=true;mensajeAcceso("Verificando credenciales...");
-  try{
-    const {data,error}=await db.auth.signInWithPassword({email:correo,password:clave});
-    if(error)throw error;
-    await iniciarSesion(data.user);
-  }catch(e){
-    mensajeAcceso("No se pudo ingresar: "+e.message);
-    await db.auth.signOut();
-  }finally{boton.disabled=false;}
-}
-async function iniciarSesion(user){
-  const correo=user.email?.toLowerCase();
-  const identidad=correoPerfil[correo];
-  if(!identidad)throw new Error("Cuenta no autorizada.");
-  const {data:integrantes,error}=await db.from("integrantes")
-    .select("id,nombre,auth_user_id,rol").eq("rol","socio");
-  if(error)throw error;
-  const actual=integrantes.find(x=>x.auth_user_id===user.id);
-  if(!actual)throw new Error("La cuenta no está vinculada a un socio en integrantes.");
-  integrantesPorId={};
-  integrantes.forEach(x=>{
-    if(x.auth_user_id===user.id) integrantesPorId[x.id]=identidad;
-    else if(/sharon/i.test(x.nombre)) integrantesPorId[x.id]="sharon";
-    else if(/alejandro/i.test(x.nombre)) integrantesPorId[x.id]="alejandro";
-  });
-  integranteActual=actual;
+/* ACCESO PROVISIONAL POR CÓDIGO — SOLO INTERFAZ LOCAL.
+   Los códigos son visibles en el código fuente y NO autentican con Supabase. */
+const CODIGOS_ACCESO = { "4590": "alejandro", "0666": "sharon" };
+function mensajeAcceso(m){ document.getElementById('mensajeAcceso').textContent=m; }
+function ingresarConCodigo(){
+  const campo=document.getElementById('codigoAcceso');
+  const identidad=CODIGOS_ACCESO[campo.value.trim()];
+  if(!identidad){ mensajeAcceso('Código incorrecto. Inténtalo nuevamente.'); campo.value=''; return; }
+  campo.value=''; mensajeAcceso('');
   usuarioActual=identidad;
-  document.getElementById("codigoAcceso").value="";
-  document.getElementById("login").classList.add("hidden");
-  document.getElementById("app").classList.remove("hidden");
-  document.getElementById("usuarioNombre").textContent=socios[identidad].nombre;
-  document.getElementById("usuarioCargo").textContent=socios[identidad].cargo;
-  document.getElementById("bienvenida").textContent=socios[identidad].bienvenida;
-  document.getElementById("socioAsistencia").textContent=socios[identidad].nombre;
-  document.getElementById("responsableMovimiento").textContent=socios[identidad].nombre;
-  await cargarDatos();
+  document.getElementById('login').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  document.getElementById('usuarioNombre').textContent=socios[identidad].nombre;
+  document.getElementById('usuarioCargo').textContent=socios[identidad].cargo;
+  document.getElementById('bienvenida').textContent=socios[identidad].bienvenida;
+  document.getElementById('socioAsistencia').textContent=socios[identidad].nombre;
+  document.getElementById('responsableMovimiento').textContent=socios[identidad].nombre;
+  actualizarTodo();
 }
-async function cerrarSesion(){
-  usuarioActual=null;integranteActual=null;
-  datosJornadas=[];datosMovimientos=[];
-  await db.auth.signOut();
-  document.getElementById("app").classList.add("hidden");
-  document.getElementById("login").classList.remove("hidden");
-  mensajeAcceso("");
+function cerrarSesion(){
+  usuarioActual=null;
+  document.getElementById('app').classList.add('hidden');
+  document.getElementById('login').classList.remove('hidden');
+  document.getElementById('codigoAcceso').value='';
+  mensajeAcceso('');
 }
-db.auth.getUser().then(async ({data,error})=>{
-  if(error || !data?.user)return;
-  try{await iniciarSesion(data.user);}catch(e){mensajeAcceso(e.message);}
-});
+
 /* NAVEGACIÓN */
 
 const titulos = {
@@ -1137,33 +1079,71 @@ function irA(id) {
 
 /* CONTROL LABORAL */
 
+function jornadas() {
+  return leerDatos(CLAVE_ASISTENCIA);
+}
+
 function jornadaAbierta() {
   return jornadas().find(j=>
     j.socio===usuarioActual && j.salida===null
   );
 }
 
-async function registrarEntrada(){
-  if(!integranteActual)return;
-  if(metaDia()===0){alert("El domingo está establecido como día de descanso.");return;}
-  await cargarDatos();
-  if(jornadaAbierta()){alert("Ya tienes una entrada abierta.");return;}
-  const {error}=await db.from("jornadas").insert({
-    integrante_id:integranteActual.id,entrada:new Date().toISOString()
+function registrarEntrada() {
+  if(!usuarioActual) return;
+
+  if(metaDia()===0) {
+    alert("El domingo está establecido como día de descanso.");
+    return;
+  }
+
+  if(jornadaAbierta()) {
+    alert("Ya tienes una entrada abierta. Registra primero tu salida.");
+    return;
+  }
+
+  const ahora = new Date();
+
+  const datos = jornadas();
+
+  datos.push({
+    id:crypto.randomUUID(),
+    socio:usuarioActual,
+    fecha:fechaLocal(ahora),
+    entrada:ahora.toISOString(),
+    salida:null
   });
-  if(error){alert("No se guardó la entrada: "+error.message);return;}
-  await cargarDatos();alert("Entrada registrada en Supabase.");
+
+  guardarDatos(CLAVE_ASISTENCIA,datos);
+
+  actualizarTodo();
+
+  alert("Entrada registrada correctamente en este navegador.");
 }
-async function registrarSalida(){
-  if(!integranteActual)return;
-  await cargarDatos();
-  const abierta=jornadaAbierta();
-  if(!abierta){alert("No tienes una jornada abierta.");return;}
-  const {error}=await db.from("jornadas").update({salida:new Date().toISOString()})
-    .eq("id",abierta.id).is("salida",null);
-  if(error){alert("No se guardó la salida: "+error.message);return;}
-  await cargarDatos();alert("Salida registrada en Supabase.");
+
+function registrarSalida() {
+  if(!usuarioActual) return;
+
+  const datos = jornadas();
+
+  const jornada = datos.find(j=>
+    j.socio===usuarioActual && j.salida===null
+  );
+
+  if(!jornada) {
+    alert("No tienes una jornada abierta.");
+    return;
+  }
+
+  jornada.salida = new Date().toISOString();
+
+  guardarDatos(CLAVE_ASISTENCIA,datos);
+
+  actualizarTodo();
+
+  alert("Salida registrada correctamente en este navegador.");
 }
+
 function actualizarAsistencia() {
   if(!usuarioActual) return;
 
@@ -1279,27 +1259,68 @@ function actualizarHistorialHoras() {
 
 /* CAJA FUERTE */
 
-async function guardarMovimiento(){
-  if(!integranteActual)return;
-  const tipo=document.getElementById("tipoMovimiento").value;
-  const monto=Number(document.getElementById("montoMovimiento").value);
-  const concepto=document.getElementById("conceptoMovimiento").value.trim();
-  if(!Number.isFinite(monto)||monto<=0){alert("Introduce un monto válido.");return;}
-  if(!concepto){alert("Introduce el concepto.");return;}
-  await cargarDatos();
-  const saldo=movimientosCaja().reduce((s,m)=>s+(m.tipo==="ingreso"?m.monto:-m.monto),0);
-  if(tipo==="retiro"&&monto>saldo+0.000001){alert("El retiro supera el saldo disponible.");return;}
-  if(!confirm(`¿Confirmas el ${tipo} de ${dinero(monto)}?`))return;
-  const {error}=await db.from("movimientos_caja").insert({
-    integrante_id:integranteActual.id,
-    tipo:tipo==="retiro"?"egreso":"ingreso",
-    monto:Math.round(monto*100)/100,concepto,fecha:new Date().toISOString()
-  });
-  if(error){alert("No se guardó el movimiento: "+error.message);return;}
-  document.getElementById("montoMovimiento").value="";
-  document.getElementById("conceptoMovimiento").value="";
-  await cargarDatos();alert("Movimiento registrado en Supabase.");
+function movimientosCaja() {
+  return leerDatos(CLAVE_CAJA);
 }
+
+function guardarMovimiento() {
+  if(!usuarioActual) return;
+
+  const tipo = document.getElementById("tipoMovimiento").value;
+  const monto = Number(document.getElementById("montoMovimiento").value);
+  const concepto = document.getElementById("conceptoMovimiento").value.trim();
+
+  if(!Number.isFinite(monto) || monto<=0) {
+    alert("Introduce un monto válido.");
+    return;
+  }
+
+  if(!concepto) {
+    alert("Introduce el concepto del movimiento.");
+    return;
+  }
+
+  const datos = movimientosCaja();
+
+  const ingresos = datos
+    .filter(m=>m.tipo==="ingreso")
+    .reduce((s,m)=>s+m.monto,0);
+
+  const retiros = datos
+    .filter(m=>m.tipo==="retiro")
+    .reduce((s,m)=>s+m.monto,0);
+
+  const saldo = ingresos-retiros;
+
+  if(tipo==="retiro" && monto>saldo+0.000001) {
+    alert("El retiro supera el saldo disponible.");
+    return;
+  }
+
+  if(!confirm(
+    `¿Confirmas el ${tipo} de ${dinero(monto)}?\n\n`+
+    `Este registro solo se guardará en este navegador.`
+  )) return;
+
+  datos.push({
+    id:crypto.randomUUID(),
+    tipo,
+    monto:Math.round(monto*100)/100,
+    concepto,
+    responsable:usuarioActual,
+    fecha:new Date().toISOString()
+  });
+
+  guardarDatos(CLAVE_CAJA,datos);
+
+  document.getElementById("montoMovimiento").value = "";
+  document.getElementById("conceptoMovimiento").value = "";
+
+  actualizarTodo();
+
+  alert("Movimiento guardado localmente.");
+}
+
 function actualizarCaja() {
   const datos = movimientosCaja();
 
@@ -1381,7 +1402,6 @@ function actualizarTodo() {
 setInterval(()=>{
   if(usuarioActual) actualizarAsistencia();
 },1000);
-setInterval(()=>{if(usuarioActual)cargarDatos();},15000);
 
 </script>
 
