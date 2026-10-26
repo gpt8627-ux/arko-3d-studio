@@ -814,6 +814,29 @@ footer {
         </div>
 
       </div>
+      <div class="card">
+        <h3>Historial mensual por semanas</h3>
+        <p class="small">Consulta cualquier mes y año. Cada semana va de lunes a domingo; se cuentan solo los días del mes elegido. Las horas adicionales compensan las faltantes dentro del período.</p>
+        <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:end;margin:16px 0">
+          <label style="flex:1;min-width:190px">Mes
+            <select id="historialMes" onchange="actualizarResumenMensual()"></select>
+          </label>
+          <label style="flex:1;min-width:130px">Año
+            <select id="historialAnio" onchange="actualizarResumenMensual()"></select>
+          </label>
+          <label style="flex:1;min-width:190px">Socio
+            <select id="historialSocio" onchange="actualizarResumenMensual()">
+              <option value="alejandro">Alejandro</option><option value="sharon">Sharon</option>
+            </select>
+          </label>
+        </div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Semana</th><th>Horas requeridas</th><th>Horas trabajadas</th><th>Adicionales</th><th>Faltantes</th><th>Saldo / cumplimiento</th></tr></thead>
+          <tbody id="tablaResumenMensual"></tbody>
+        </table></div>
+        <div id="totalResumenMensual" class="small" style="margin-top:18px"></div>
+        <p class="small">Los meses anteriores se reconstruyen automáticamente con las jornadas guardadas en Supabase. No se borra ni duplica el historial.</p>
+      </div>
 
     </section>
 
@@ -1347,6 +1370,53 @@ function actualizarHistorialHoras(){
   });
 }
 
+/* HISTORIAL MENSUAL POR SEMANAS (sin nuevas tablas) */
+const MESES_HISTORIAL=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+let historialInicializado=false;
+function inicializarHistorialMensual(){
+  const mes=document.getElementById('historialMes'),anio=document.getElementById('historialAnio'),socio=document.getElementById('historialSocio');
+  if(!mes||!anio||!socio)return;
+  const hoy=new Date();
+  if(!historialInicializado){
+    MESES_HISTORIAL.forEach((nombre,i)=>mes.add(new Option(nombre[0].toUpperCase()+nombre.slice(1),String(i))));
+    mes.value=String(hoy.getMonth());
+    socio.value=usuarioActual||'alejandro';
+    historialInicializado=true;
+  }
+  const anioElegido=anio.value||String(hoy.getFullYear());
+  const anios=new Set([hoy.getFullYear(),Number(anioElegido)]);
+  jornadas().forEach(j=>{const f=new Date(j.entrada);if(Number.isFinite(+f))anios.add(f.getFullYear());});
+  anio.replaceChildren();
+  [...anios].sort((a,b)=>b-a).forEach(y=>anio.add(new Option(String(y),String(y))));
+  anio.value=anioElegido;
+}
+function actualizarResumenMensual(){
+  inicializarHistorialMensual();
+  const mesEl=document.getElementById('historialMes'),anioEl=document.getElementById('historialAnio'),socioEl=document.getElementById('historialSocio');
+  const tbody=document.getElementById('tablaResumenMensual'),totalEl=document.getElementById('totalResumenMensual');
+  if(!mesEl||!anioEl||!socioEl||!tbody||!totalEl)return;
+  const mes=Number(mesEl.value),anio=Number(anioEl.value),socio=socioEl.value;
+  const inicio=new Date(anio,mes,1),fin=new Date(anio,mes+1,0);
+  const resumen=resumenLaboral(new Date());
+  tbody.replaceChildren();
+  let requeridas=0,trabajadas=0,adicionales=0,faltantes=0;
+  let cursor=new Date(inicio);
+  while(cursor<=fin){
+    const domingo=new Date(cursor);
+    domingo.setDate(domingo.getDate()+(7-domingo.getDay())%7);
+    const hasta=domingo<fin?domingo:new Date(fin);
+    const b=balancePeriodo(socio,cursor,hasta,resumen);
+    const extra=Math.max(0,b.saldo),falta=Math.max(0,-b.saldo);
+    requeridas+=b.exigidas;trabajadas+=b.trabajadas;adicionales+=extra;faltantes+=falta;
+    const rango=`${cursor.getDate()} al ${hasta.getDate()} de ${MESES_HISTORIAL[mes]}`;
+    agregarFila(tbody,[rango,duracion(b.exigidas),duracion(b.trabajadas),extra?`+${duracion(extra)}`:'—',falta?`−${duracion(falta)}`:'—',`${formatoSaldo(b.saldo)} · ${b.saldo>=0?'Cumplido':'Horas faltantes'}`]);
+    cursor=new Date(hasta.getFullYear(),hasta.getMonth(),hasta.getDate()+1);
+  }
+  const saldo=trabajadas-requeridas;
+  totalEl.textContent=`TOTAL ${MESES_HISTORIAL[mes].toUpperCase()} ${anio} · Requeridas: ${duracion(requeridas)} · Trabajadas: ${duracion(trabajadas)} · Adicionales por semana: ${duracion(adicionales)} · Faltantes por semana: ${duracion(faltantes)} · Balance neto mensual: ${formatoSaldo(saldo)} (${saldo>=0?'cumplido':'horas faltantes'})`;
+  totalEl.className='small '+(saldo>=0?'green':'red');
+}
+
 /* PEDIDOS: OPERACIONES INDEPENDIENTES DE LA CAJA FUERTE */
 const ESTADOS_PEDIDO={pendiente:'Pendiente',produccion:'En producción',terminado:'Terminado',entregado:'Entregado',cancelado:'Cancelado'};
 function limpiarFormularioPedido(){
@@ -1569,6 +1639,7 @@ function actualizarTodo() {
 
   actualizarAsistencia();
   actualizarHistorialHoras();
+  actualizarResumenMensual();
   actualizarCaja();
   actualizarHistorialCaja();
   actualizarPedidos();
