@@ -497,6 +497,40 @@ footer {
 .pedido-detalle>td{padding:18px;line-height:1.8;white-space:pre-wrap;overflow-wrap:anywhere}
 .pedido-detalle-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
 @media(max-width:750px){.pedido-filtros,.pedido-detalle-grid{grid-template-columns:1fr}.pedido-meses button{padding:12px}}
+
+/* ARKO V4.1 — Indicadores visuales del historial mensual */
+.month-summary-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:20px 0 16px}
+.month-summary-item{background:#141925;border:1px solid #343a4a;border-radius:14px;padding:17px 16px;min-width:0}
+.month-summary-label{color:var(--muted);font-size:12px;margin-bottom:10px}
+.month-summary-value{font-size:23px;font-weight:800;line-height:1.2;overflow-wrap:anywhere}
+.month-summary-item.is-good{border-color:#326e5a;background:#152820}
+.month-summary-item.is-bad{border-color:#874347;background:#2c1a20}
+.month-summary-item.is-neutral{border-color:#504b76;background:#201e31}
+.month-summary-item.is-good .month-summary-value{color:#8be1b6}
+.month-summary-item.is-bad .month-summary-value{color:#ff999e}
+.month-summary-item.is-neutral .month-summary-value{color:#c0b4ff}
+.month-balance-banner{border:1px solid #444b5b;background:#171c27;border-radius:13px;padding:16px 18px;margin:16px 0;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.month-balance-banner.is-good{border-color:#326e5a;background:#14251f}
+.month-balance-banner.is-bad{border-color:#874347;background:#2c1a20}
+.month-balance-title{font-weight:700;color:#e9eaf1}
+.month-balance-value{font-size:21px;font-weight:800}
+.month-balance-banner.is-good .month-balance-value{color:#8be1b6}
+.month-balance-banner.is-bad .month-balance-value{color:#ff999e}
+.month-table tbody tr:hover{background:#222838}
+.month-table tbody tr.week-deficit{background:rgba(229,139,139,.055)}
+.month-table tbody tr.week-surplus{background:rgba(121,199,167,.055)}
+.month-table td{vertical-align:middle}
+.month-pill{display:inline-flex;align-items:center;gap:6px;border-radius:9px;padding:7px 10px;font-weight:700;white-space:nowrap;font-size:12px}
+.month-pill.negative{background:#42242d;color:#ffa3a9;border:1px solid #79404c}
+.month-pill.positive{background:#19392e;color:#91e7bc;border:1px solid #346c55}
+.month-pill.neutral{background:#292a3b;color:#c6c2d8;border:1px solid #44465c}
+.month-week-name{font-weight:700;white-space:nowrap}
+.month-week-progress{height:5px;border-radius:99px;background:#363d4c;overflow:hidden;margin-top:9px;max-width:150px}
+.month-week-progress>span{display:block;height:100%;background:#a99cff;border-radius:99px}
+.month-table tr.week-deficit .month-week-progress>span{background:#e58b8b}
+.month-table tr.week-surplus .month-week-progress>span{background:#79c7a7}
+@media(max-width:780px){.month-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.month-summary-value{font-size:19px}.month-table{min-width:800px}}
+@media(max-width:380px){.month-summary-grid{gap:8px}.month-summary-item{padding:12px}}
 </style>
   <link rel="apple-touch-icon" sizes="180x180" href="./logo-arko.png">
 <link rel="icon" type="image/png" href="./logo-arko.png">
@@ -830,11 +864,12 @@ footer {
             </select>
           </label>
         </div>
-        <div class="table-wrap"><table>
+        <div id="tarjetasResumenMensual" class="month-summary-grid" aria-live="polite"></div>
+        <div class="table-wrap"><table class="month-table">
           <thead><tr><th>Semana</th><th>Horas requeridas</th><th>Horas trabajadas</th><th>Adicionales</th><th>Faltantes</th><th>Saldo / cumplimiento</th></tr></thead>
           <tbody id="tablaResumenMensual"></tbody>
         </table></div>
-        <div id="totalResumenMensual" class="small" style="margin-top:18px"></div>
+        <div id="totalResumenMensual" class="month-balance-banner" aria-live="polite"></div>
         <p class="small">Los meses anteriores se reconstruyen automáticamente con las jornadas guardadas en Supabase. No se borra ni duplica el historial.</p>
       </div>
 
@@ -1409,12 +1444,48 @@ function actualizarResumenMensual(){
     const extra=Math.max(0,b.saldo),falta=Math.max(0,-b.saldo);
     requeridas+=b.exigidas;trabajadas+=b.trabajadas;adicionales+=extra;faltantes+=falta;
     const rango=`${cursor.getDate()} al ${hasta.getDate()} de ${MESES_HISTORIAL[mes]}`;
-    agregarFila(tbody,[rango,duracion(b.exigidas),duracion(b.trabajadas),extra?`+${duracion(extra)}`:'—',falta?`−${duracion(falta)}`:'—',`${formatoSaldo(b.saldo)} · ${b.saldo>=0?'Cumplido':'Horas faltantes'}`]);
+    const tr=document.createElement('tr');
+    tr.className=b.saldo<0?'week-deficit':b.saldo>0?'week-surplus':'week-complete';
+    const progreso=b.exigidas>0?Math.min(100,Math.max(0,b.trabajadas/b.exigidas*100)):b.trabajadas>0?100:0;
+    const celdas=[rango,duracion(b.exigidas),duracion(b.trabajadas)];
+    celdas.forEach((valor,i)=>{
+      const td=document.createElement('td');
+      if(i===0){
+        const nombre=document.createElement('div');nombre.className='month-week-name';nombre.textContent=valor;td.appendChild(nombre);
+        const barra=document.createElement('div');barra.className='month-week-progress';barra.setAttribute('aria-label',`Progreso semanal ${Math.round(progreso)} por ciento`);
+        const relleno=document.createElement('span');relleno.style.width=`${progreso}%`;barra.appendChild(relleno);td.appendChild(barra);
+      }else td.textContent=valor;
+      tr.appendChild(td);
+    });
+    const crearIndicador=(texto,tipo)=>{const td=document.createElement('td');const badge=document.createElement('span');badge.className=`month-pill ${tipo}`;badge.textContent=texto;td.appendChild(badge);tr.appendChild(td);};
+    crearIndicador(extra?`+${duracion(extra)}`:'—',extra?'positive':'neutral');
+    crearIndicador(falta?`−${duracion(falta)}`:'—',falta?'negative':'neutral');
+    crearIndicador(`${formatoSaldo(b.saldo)} · ${b.saldo>0?'Horas adicionales':b.saldo<0?'Horas faltantes':'Cumplido'}`,b.saldo>0?'positive':b.saldo<0?'negative':'neutral');
+    tbody.appendChild(tr);
     cursor=new Date(hasta.getFullYear(),hasta.getMonth(),hasta.getDate()+1);
   }
   const saldo=trabajadas-requeridas;
-  totalEl.textContent=`TOTAL ${MESES_HISTORIAL[mes].toUpperCase()} ${anio} · Requeridas: ${duracion(requeridas)} · Trabajadas: ${duracion(trabajadas)} · Adicionales por semana: ${duracion(adicionales)} · Faltantes por semana: ${duracion(faltantes)} · Balance neto mensual: ${formatoSaldo(saldo)} (${saldo>=0?'cumplido':'horas faltantes'})`;
-  totalEl.className='small '+(saldo>=0?'green':'red');
+  const tarjetas=document.getElementById('tarjetasResumenMensual');
+  if(tarjetas){
+    tarjetas.replaceChildren();
+    const metricas=[
+      ['Horas requeridas',duracion(requeridas),'is-neutral'],
+      ['Horas trabajadas',duracion(trabajadas),'is-neutral'],
+      ['Horas adicionales',`+${duracion(adicionales)}`,'is-good'],
+      ['Horas faltantes',`−${duracion(faltantes)}`,faltantes?'is-bad':'is-good']
+    ];
+    metricas.forEach(([titulo,valor,clase])=>{
+      const card=document.createElement('div');card.className=`month-summary-item ${clase}`;
+      const label=document.createElement('div');label.className='month-summary-label';label.textContent=titulo;
+      const number=document.createElement('div');number.className='month-summary-value';number.textContent=valor;
+      card.append(label,number);tarjetas.appendChild(card);
+    });
+  }
+  totalEl.replaceChildren();
+  totalEl.className=`month-balance-banner ${saldo<0?'is-bad':'is-good'}`;
+  const titulo=document.createElement('span');titulo.className='month-balance-title';titulo.textContent=`Balance neto · ${MESES_HISTORIAL[mes]} ${anio}`;
+  const valor=document.createElement('strong');valor.className='month-balance-value';valor.textContent=`${formatoSaldo(saldo)} · ${saldo<0?'Horas faltantes':saldo>0?'Horas adicionales':'Horas cumplidas'}`;
+  totalEl.append(titulo,valor);
 }
 
 /* PEDIDOS: OPERACIONES INDEPENDIENTES DE LA CAJA FUERTE */
