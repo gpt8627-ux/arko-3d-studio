@@ -446,6 +446,57 @@ footer {
   input,select,textarea {max-width:100%;box-sizing:border-box;font-size:16px;}
   .login {padding:calc(18px + env(safe-area-inset-top,0px)) 14px calc(18px + env(safe-area-inset-bottom,0px));}
 }
+/* TABLETS Y PANTALLAS INTERMEDIAS */
+@media(min-width:751px) and (max-width:1180px){
+ .sidebar{width:220px;padding:20px 12px}
+ .main{padding:24px}
+ .grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .two-columns{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .card{padding:20px}
+ .nav button{padding:15px 12px;min-height:48px}
+ .topbar h1{font-size:25px}
+}
+@media(min-width:751px) and (max-width:900px) and (orientation:portrait){
+ .app{display:block}
+ .sidebar{width:100%;border-right:0;border-bottom:1px solid var(--border);padding:12px 18px}
+ .brand{display:none}
+ .nav{display:flex;overflow-x:auto;gap:8px;margin-top:0;scrollbar-width:thin}
+ .nav button{flex:0 0 auto;width:auto;white-space:nowrap;margin:0}
+ .main{padding:24px}
+}
+@media(max-width:750px){
+ .grid,.two-columns{grid-template-columns:1fr}
+ .row .btn{min-height:44px}
+ .table-wrap{overflow-x:auto}
+}
+@media(min-width:901px) and (max-width:1180px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 18px}
+.form-grid .span-two{grid-column:1/-1}
+@media(max-width:750px){.form-grid{grid-template-columns:1fr}.form-grid .span-two{grid-column:auto}}
+.stat-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+@media(max-width:750px){.stat-row{grid-template-columns:1fr}}
+.pill{display:inline-block;border:1px solid var(--border);border-radius:999px;padding:6px 10px;font-size:12px}
+.order-actions{display:flex;gap:8px;flex-wrap:wrap}
+.order-actions .btn{padding:8px 12px;font-size:12px}
+.table-wrap table{min-width:680px}
+
+/* GESTIÓN DE PEDIDOS: FILTROS POR MES, ESTADO Y BÚSQUEDA */
+.pedido-filtros{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:end;margin:12px 0 18px}
+.pedido-filtros label{margin:0 0 8px}
+.pedido-meses{display:flex;gap:8px;align-items:center}
+.pedido-meses select{flex:1;min-width:0}
+.pedido-meses button{min-height:48px}
+.pedido-tabs{display:flex;gap:9px;overflow-x:auto;padding:3px 0 15px;scrollbar-width:thin}
+.pedido-tabs button{flex:0 0 auto;border:1px solid var(--border);background:#242936;color:var(--text);border-radius:12px;padding:11px 13px;min-height:46px;cursor:pointer}
+.pedido-tabs button.active{background:var(--accent);color:#10111a;border-color:var(--accent);font-weight:bold}
+.pedido-tabs span{display:inline-block;margin-left:4px;opacity:.85}
+.pedido-urgente{color:var(--red);font-weight:bold}
+.pedido-proximo{color:#e6c37e;font-weight:bold}
+.pedido-estado{min-width:145px;padding:9px;font-size:13px}
+.pedido-detalle{background:#121621}
+.pedido-detalle>td{padding:18px;line-height:1.8;white-space:pre-wrap;overflow-wrap:anywhere}
+.pedido-detalle-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+@media(max-width:750px){.pedido-filtros,.pedido-detalle-grid{grid-template-columns:1fr}.pedido-meses button{padding:12px}}
 </style>
   <link rel="apple-touch-icon" sizes="180x180" href="./logo-arko.png">
 <link rel="icon" type="image/png" href="./logo-arko.png">
@@ -529,6 +580,10 @@ footer {
 
       <button onclick="mostrar('historialHoras',this)">
         ▤ Historial laboral
+      </button>
+
+      <button onclick="mostrar('pedidos',this)">
+        ▣ Gestión de pedidos
       </button>
 
       <button onclick="mostrar('caja',this)">
@@ -622,6 +677,7 @@ footer {
             Control de asistencia
           </button>
 
+          <button class="btn btn-secondary" onclick="irA('pedidos')">Gestión de pedidos</button>
           <button class="btn btn-secondary" onclick="irA('caja')">
             Consultar caja fuerte
           </button>
@@ -723,6 +779,12 @@ footer {
     <section id="historialHoras" class="section">
 
       <div class="card">
+        <h3>Balance de horas del socio</h3>
+        <p class="small">Las horas adicionales compensan las faltantes dentro de cada semana o mes. El domingo tiene meta cero y suma horas voluntarias. El balance se calcula para el período completo; los días futuros aún cuentan en la meta.</p>
+        <p><strong>Semana (lunes a domingo):</strong> <span id="balanceSemanal" class="small"></span></p>
+        <p><strong>Mes calendario:</strong> <span id="balanceMensual" class="small"></span></p>
+      </div>
+      <div class="card">
 
         <h3>Historial de asistencia</h3>
 
@@ -753,6 +815,57 @@ footer {
 
       </div>
 
+    </section>
+
+    <!-- GESTIÓN DE PEDIDOS: MÓDULO DEFINITIVO -->
+    <section id="pedidos" class="section">
+      <div class="stat-row">
+        <div class="card"><div class="metric-title">Pedidos activos</div><div class="metric purple" id="pedidosActivos">0</div></div>
+        <div class="card"><div class="metric-title">Próximos 2 días</div><div class="metric green" id="pedidosProximos">0</div></div>
+        <div class="card"><div class="metric-title">Pedidos atrasados</div><div class="metric red" id="pedidosAtrasados">0</div></div>
+      </div>
+      <div class="card">
+        <h3 id="tituloFormularioPedido">Registrar nuevo pedido</h3>
+        <p class="small">Los recordatorios se enviarán únicamente a los correos internos configurados en el servidor, dos días antes de la fecha de entrega. No se envían desde el navegador.</p>
+        <form id="formPedido" onsubmit="guardarPedido(event)">
+          <input type="hidden" id="pedidoId">
+          <div class="form-grid">
+            <div><label for="pedidoCliente">Nombre del cliente *</label><input id="pedidoCliente" maxlength="150" required></div>
+            <div><label for="pedidoContacto">Contacto del cliente (opcional)</label><input id="pedidoContacto" maxlength="150" placeholder="Teléfono o referencia"></div>
+            <div class="span-two"><label for="pedidoDescripcion">Producto o descripción *</label><textarea id="pedidoDescripcion" rows="3" maxlength="2000" required></textarea></div>
+            <div><label for="pedidoCantidad">Cantidad *</label><input id="pedidoCantidad" type="number" min="1" step="1" value="1" required></div>
+            <div><label for="pedidoEntrega">Fecha de entrega *</label><input id="pedidoEntrega" type="date" required></div>
+            <div><label for="pedidoPrecio">Precio total (Bs) *</label><input id="pedidoPrecio" type="number" min="0" step="0.01" value="0" required></div>
+            <div><label for="pedidoAdelanto">Adelanto recibido (Bs) *</label><input id="pedidoAdelanto" type="number" min="0" step="0.01" value="0" required></div>
+            <div><label for="pedidoResponsable">Responsable *</label><select id="pedidoResponsable"><option value="alejandro">Alejandro</option><option value="sharon">Sharon</option></select></div>
+            <div><label for="pedidoEstado">Estado *</label><select id="pedidoEstado"><option value="pendiente">Pendiente</option><option value="produccion">En producción</option><option value="terminado">Terminado</option><option value="entregado">Entregado</option><option value="cancelado">Cancelado</option></select></div>
+            <div class="span-two"><label for="pedidoNotas">Observaciones</label><textarea id="pedidoNotas" rows="2" maxlength="2000"></textarea></div>
+          </div>
+          <div class="row" style="margin-top:20px">
+            <button class="btn btn-green" id="btnGuardarPedido" type="submit">Guardar pedido</button>
+            <button class="btn btn-secondary" type="button" onclick="limpiarFormularioPedido()">Limpiar / cancelar edición</button>
+          </div>
+        </form>
+      </div>
+      <div class="card">
+        <h3>Seguimiento e historial de pedidos</h3>
+        <div class="pedido-filtros">
+          <div><label for="mesPedidos">Mes de entrega</label><div class="pedido-meses"><button type="button" class="btn btn-secondary" onclick="cambiarMesPedidos(-1)" aria-label="Mes anterior">◀</button><select id="mesPedidos" onchange="seleccionarMesPedidos(this.value)"></select><button type="button" class="btn btn-secondary" onclick="cambiarMesPedidos(1)" aria-label="Mes siguiente">▶</button></div></div>
+          <div><label for="buscarPedidos">Buscar cliente, producto o contacto</label><input id="buscarPedidos" type="search" placeholder="Buscar pedidos..." oninput="actualizarPedidos()"></div>
+        </div>
+        <div class="pedido-tabs" id="tabsPedidos" role="group" aria-label="Filtrar pedidos por estado">
+          <button type="button" class="active" data-estado="todos" onclick="filtrarEstadoPedido('todos')">Todos <span></span></button>
+          <button type="button" data-estado="pendiente" onclick="filtrarEstadoPedido('pendiente')">Pendientes <span></span></button>
+          <button type="button" data-estado="produccion" onclick="filtrarEstadoPedido('produccion')">En producción <span></span></button>
+          <button type="button" data-estado="terminado" onclick="filtrarEstadoPedido('terminado')">Terminados <span></span></button>
+          <button type="button" data-estado="entregado" onclick="filtrarEstadoPedido('entregado')">Entregados <span></span></button>
+          <button type="button" data-estado="cancelado" onclick="filtrarEstadoPedido('cancelado')">Cancelados <span></span></button>
+          <button type="button" data-estado="acumulados" onclick="filtrarEstadoPedido('acumulados')">Pendientes acumulados <span></span></button>
+        </div>
+        <p class="small" id="resumenFiltroPedidos" aria-live="polite"></p>
+        <div class="table-wrap"><table><thead><tr><th>Cliente / pedido</th><th>Entrega</th><th>Responsable</th><th>Estado / cambiar</th><th>Total</th><th>Adelanto</th><th>Saldo</th><th>Acciones</th></tr></thead><tbody id="tablaPedidos"></tbody></table></div>
+        <p class="small" id="mensajePedidos"></p>
+      </div>
     </section>
 
     <!-- CAJA FUERTE -->
@@ -965,7 +1078,8 @@ const CLAVE_CAJA = "arko_caja_demo_v1";
 const SUPABASE_URL="https://xybvjgjdpyvdhkdozvvr.supabase.co";
 const SUPABASE_KEY="sb_publishable_uZV9KNRPuyFnzXUu8gvqfQ_1eGzprUb";
 const base=window.supabase?.createClient(SUPABASE_URL,SUPABASE_KEY);
-let datosAsistencia=[], datosCaja=[], idsSocios={}, sincronizacionActiva=false;
+let datosAsistencia=[], datosCaja=[], datosPedidos=[], idsSocios={}, sincronizacionActiva=false;
+let pedidosDisponibles=true;
 let sincronizacionEnCurso=false;
 function leerDatos(clave){return clave===CLAVE_ASISTENCIA?datosAsistencia:datosCaja;}
 function informarError(error){console.error('Supabase:',error);alert('No se pudo sincronizar con Supabase: '+(error?.message||error));}
@@ -987,6 +1101,13 @@ async function sincronizar(){
     }
     datosAsistencia=jornadasDB.data.map(j=>({...j,socio:mapa[j.integrante_id],fecha:fechaLocal(new Date(j.entrada))}));
     datosCaja=cajaDB.data.map(m=>({...m,tipo:m.tipo==='egreso'?'retiro':m.tipo,monto:Number(m.monto),responsable:mapa[m.integrante_id]}));
+    // El módulo de pedidos se consulta por separado para no interrumpir caja y asistencia.
+    try{
+      const pedidosDB=await base.from('pedidos').select('*').order('fecha_entrega',{ascending:true});
+      if(pedidosDB.error)throw pedidosDB.error;
+      datosPedidos=pedidosDB.data||[];
+      pedidosDisponibles=true;
+    }catch(error){pedidosDisponibles=false;console.warn('Pedidos: comprueba la tabla y permisos.',error);}
     sincronizacionActiva=true;
     actualizarTodo();
   }catch(error){sincronizacionActiva=false;console.error('Error de sincronización',error);}
@@ -1073,7 +1194,8 @@ const titulos = {
   caja:"Caja fuerte",
   movimientos:"Ingresos y retiros",
   historialCaja:"Historial financiero",
-  socios:"Socios"
+  socios:"Socios",
+  pedidos:"Gestión de pedidos"
 };
 
 function mostrar(id,boton) {
@@ -1117,7 +1239,7 @@ function jornadaAbierta() {
 }
 
 async function registrarEntrada(){
-  if(!usuarioActual||metaDia()===0)return;
+  if(!usuarioActual)return;
   if(!await verificarConexion())return;
   if(jornadaAbierta()){alert('Ya tienes una entrada abierta.');return;}
   const {error}=await base.from('jornadas').insert({integrante_id:idsSocios[usuarioActual],entrada:new Date().toISOString()});
@@ -1133,116 +1255,217 @@ async function registrarSalida(){
   await sincronizar();alert('Salida registrada correctamente.');
 }
 
-function actualizarAsistencia() {
-  if(!usuarioActual) return;
-
-  const ahora = new Date();
-  const meta = metaDia(ahora);
-  const datos = jornadas();
-
-  document.getElementById("fechaActual").textContent =
-    ahora.toLocaleDateString("es-BO",{
-      weekday:"long",
-      year:"numeric",
-      month:"long",
-      day:"numeric"
-    });
-
-  document.getElementById("reloj").textContent =
-    ahora.toLocaleTimeString("es-BO");
-
-  document.getElementById("metaAsistencia").textContent =
-    meta===0 ? "Descanso dominical" : `${meta} horas`;
-
-  document.getElementById("metaPanel").textContent =
-    meta===0 ? "Descanso" : `${meta} horas`;
-
-  document.getElementById("metaDescripcion").textContent =
-    meta===0 ? "Domingo libre" : "Jornada mínima establecida";
-
-  const abierta = jornadaAbierta();
-
-  const hoy = fechaLocal(ahora);
-
-  const registrosHoy = datos.filter(j=>
-    j.socio===usuarioActual && j.fecha===hoy
-  );
-
-  let totalMs = 0;
-
-  registrosHoy.forEach(j=>{
-    const fin = j.salida ? new Date(j.salida) : ahora;
-    totalMs += Math.max(0,fin-new Date(j.entrada));
-  });
-
-  document.getElementById("horasPanel").textContent =
-    duracion(totalMs);
-
-  document.getElementById("tiempoTrabajado").textContent =
-    duracion(totalMs);
-
-  document.getElementById("btnEntrada").disabled =
-    !!abierta || meta===0;
-
-  document.getElementById("btnSalida").disabled =
-    !abierta;
-
-  const ultimo = registrosHoy[registrosHoy.length-1];
-
-  document.getElementById("horaEntrada").textContent =
-    ultimo ? horaLocal(ultimo.entrada) : "--:--";
-
-  document.getElementById("horaSalida").textContent =
-    ultimo?.salida ? horaLocal(ultimo.salida) : "--:--";
-
-  let estado = "Sin entrada registrada";
-
-  if(meta===0) {
-    estado = "Día de descanso";
-  } else if(abierta) {
-    estado = "Jornada en curso";
-  } else if(registrosHoy.length) {
-    estado = totalMs>=meta*3600000
-      ? "Jornada cumplida"
-      : "Jornada incompleta";
+/* HORAS: CADA INTERVALO SE REPARTE POR DÍA LOCAL, INCLUSO AL CRUZAR MEDIANOCHE */
+function partesDiarias(j,ahora=new Date()){
+  const inicio=new Date(j.entrada);
+  const fin=j.salida?new Date(j.salida):ahora;
+  if(!Number.isFinite(+inicio)||!Number.isFinite(+fin)||fin<=inicio)return [];
+  const partes=[];
+  let cursor=new Date(inicio);
+  while(cursor<fin){
+    const siguiente=new Date(cursor.getFullYear(),cursor.getMonth(),cursor.getDate()+1);
+    const hasta=fin<siguiente?fin:siguiente;
+    partes.push({fecha:fechaLocal(cursor),ms:hasta-cursor});
+    cursor=hasta;
   }
-
-  document.getElementById("estadoJornada").textContent = estado;
+  return partes;
+}
+function resumenLaboral(ahora=new Date()){
+  const porSocio={};
+  jornadas().forEach(j=>{
+    if(!j.socio)return;
+    if(!porSocio[j.socio])porSocio[j.socio]={};
+    partesDiarias(j,ahora).forEach(p=>{
+      porSocio[j.socio][p.fecha]=(porSocio[j.socio][p.fecha]||0)+p.ms;
+    });
+  });
+  return porSocio;
+}
+function rangoDias(desde,hasta){
+  const dias=[];
+  const d=new Date(desde.getFullYear(),desde.getMonth(),desde.getDate());
+  const limite=new Date(hasta.getFullYear(),hasta.getMonth(),hasta.getDate());
+  while(d<=limite){dias.push(new Date(d));d.setDate(d.getDate()+1);}
+  return dias;
+}
+function balancePeriodo(socio,desde,hasta,resumen){
+  const dias=rangoDias(desde,hasta);
+  const trabajadas=dias.reduce((s,d)=>s+(resumen[socio]?.[fechaLocal(d)]||0),0);
+  const exigidas=dias.reduce((s,d)=>s+metaDia(d)*3600000,0);
+  return {trabajadas,exigidas,saldo:trabajadas-exigidas};
+}
+function formatoSaldo(ms){return (ms<0?'−':ms>0?'+':'')+duracion(Math.abs(ms));}
+function actualizarBalances(ahora,resumen){
+  const lunes=new Date(ahora.getFullYear(),ahora.getMonth(),ahora.getDate());
+  lunes.setDate(lunes.getDate()-((lunes.getDay()+6)%7));
+  const domingo=new Date(lunes);domingo.setDate(domingo.getDate()+6);
+  const inicioMes=new Date(ahora.getFullYear(),ahora.getMonth(),1);
+  const finMes=new Date(ahora.getFullYear(),ahora.getMonth()+1,0);
+  const semanal=balancePeriodo(usuarioActual,lunes,domingo,resumen);
+  const mensual=balancePeriodo(usuarioActual,inicioMes,finMes,resumen);
+  for(const [id,b] of [['balanceSemanal',semanal],['balanceMensual',mensual]]){
+    const el=document.getElementById(id);if(!el)continue;
+    el.textContent=`Trabajadas: ${duracion(b.trabajadas)} · Meta: ${duracion(b.exigidas)} · Saldo: ${formatoSaldo(b.saldo)}`;
+    el.className='small '+(b.saldo>=0?'green':'red');
+  }
+}
+function actualizarAsistencia(){
+  if(!usuarioActual)return;
+  const ahora=new Date(),meta=metaDia(ahora),hoy=fechaLocal(ahora);
+  const resumen=resumenLaboral(ahora);
+  const totalMs=resumen[usuarioActual]?.[hoy]||0;
+  const abierta=jornadaAbierta();
+  const registrosHoy=jornadas().filter(j=>j.socio===usuarioActual && partesDiarias(j,ahora).some(p=>p.fecha===hoy));
+  document.getElementById('fechaActual').textContent=ahora.toLocaleDateString('es-BO',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  document.getElementById('reloj').textContent=ahora.toLocaleTimeString('es-BO');
+  document.getElementById('metaAsistencia').textContent=meta===0?'Descanso dominical (trabajo voluntario)':`${meta} horas`;
+  document.getElementById('metaPanel').textContent=`${meta} horas`;
+  document.getElementById('metaDescripcion').textContent=meta===0?'Domingo: las horas trabajadas compensan otras jornadas':'Jornada mínima establecida';
+  document.getElementById('horasPanel').textContent=duracion(totalMs);
+  document.getElementById('tiempoTrabajado').textContent=duracion(totalMs);
+  document.getElementById('btnEntrada').disabled=!!abierta;
+  document.getElementById('btnSalida').disabled=!abierta;
+  const ultimo=registrosHoy[registrosHoy.length-1];
+  document.getElementById('horaEntrada').textContent=ultimo?horaLocal(ultimo.entrada):'--:--';
+  document.getElementById('horaSalida').textContent=ultimo?.salida?horaLocal(ultimo.salida):'--:--';
+  const estado=abierta?'Jornada en curso':totalMs>0?(meta===0?'Trabajo dominical registrado':totalMs>=meta*3600000?'Jornada cumplida':'Jornada incompleta'):meta===0?'Día de descanso':'Sin entrada registrada';
+  document.getElementById('estadoJornada').textContent=estado;
+  actualizarBalances(ahora,resumen);
+}
+function actualizarHistorialHoras(){
+  const tbody=document.getElementById('tablaAsistencia');tbody.replaceChildren();
+  const datos=jornadas().slice().reverse();
+  if(!datos.length){agregarFilaVacia(tbody,6,'Todavía no existen registros.');return;}
+  const ahora=new Date(),resumen=resumenLaboral(ahora);
+  datos.forEach(j=>{
+    const inicio=new Date(j.entrada),fin=j.salida?new Date(j.salida):null;
+    const totalDiario=resumen[j.socio]?.[j.fecha]||0;
+    const meta=metaDia(inicio);
+    const enCurso=!fin||jornadas().some(x=>x.socio===j.socio&&!x.salida&&partesDiarias(x,ahora).some(p=>p.fecha===j.fecha));
+    const cumplimiento=enCurso?'En curso':meta===0?'Trabajo dominical':totalDiario>=meta*3600000?'Jornada diaria cumplida':'Jornada diaria incompleta';
+    agregarFila(tbody,[socios[j.socio]?.nombre||'Socio',j.fecha,horaLocal(j.entrada),fin?horaLocal(fin):'Pendiente',fin?duracion(Math.max(0,fin-inicio)):'En curso',cumplimiento]);
+  });
 }
 
-function actualizarHistorialHoras() {
-  const tbody = document.getElementById("tablaAsistencia");
+/* PEDIDOS: OPERACIONES INDEPENDIENTES DE LA CAJA FUERTE */
+const ESTADOS_PEDIDO={pendiente:'Pendiente',produccion:'En producción',terminado:'Terminado',entregado:'Entregado',cancelado:'Cancelado'};
+function limpiarFormularioPedido(){
+  document.getElementById('formPedido').reset();
+  document.getElementById('pedidoId').value='';
+  document.getElementById('tituloFormularioPedido').textContent='Registrar nuevo pedido';
+  document.getElementById('btnGuardarPedido').textContent='Guardar pedido';
+  document.getElementById('pedidoResponsable').value=usuarioActual||'alejandro';
+}
+function editarPedido(id){
+  const p=datosPedidos.find(x=>String(x.id)===String(id));if(!p)return;
+  const campos={pedidoId:p.id,pedidoCliente:p.cliente,pedidoContacto:p.contacto||'',pedidoDescripcion:p.descripcion,pedidoCantidad:p.cantidad,pedidoEntrega:p.fecha_entrega,pedidoPrecio:p.precio_total,pedidoAdelanto:p.adelanto,pedidoResponsable:p.responsable,pedidoEstado:p.estado,pedidoNotas:p.notas||''};
+  for(const [id,v] of Object.entries(campos))document.getElementById(id).value=v;
+  document.getElementById('tituloFormularioPedido').textContent='Editar pedido';
+  document.getElementById('btnGuardarPedido').textContent='Guardar cambios';
+  document.getElementById('formPedido').scrollIntoView({behavior:'smooth',block:'start'});
+}
+async function guardarPedido(event){
+  event.preventDefault();
+  if(!usuarioActual||!await verificarConexion())return;
+  if(!pedidosDisponibles){alert('Primero debes crear la tabla pedidos en Supabase (consulta la guía SQL).');return;}
+  const id=document.getElementById('pedidoId').value;
+  const v=(x)=>document.getElementById(x).value.trim();
+  const cantidad=Number(v('pedidoCantidad')),precio=Number(v('pedidoPrecio')),adelanto=Number(v('pedidoAdelanto'));
+  if(!v('pedidoCliente')||!v('pedidoDescripcion')||!v('pedidoEntrega')){alert('Completa los campos obligatorios.');return;}
+  if(!Number.isInteger(cantidad)||cantidad<1||!Number.isFinite(precio)||precio<0||!Number.isFinite(adelanto)||adelanto<0||adelanto>precio){alert('Revisa cantidad, precio y adelanto (el adelanto no puede superar el precio).');return;}
+  const payload={cliente:v('pedidoCliente'),contacto:v('pedidoContacto'),descripcion:v('pedidoDescripcion'),cantidad,fecha_entrega:v('pedidoEntrega'),precio_total:precio,adelanto,responsable:v('pedidoResponsable'),estado:v('pedidoEstado'),notas:v('pedidoNotas')};
+  if(!id)payload.creado_por=usuarioActual;
+  const consulta=id?base.from('pedidos').update(payload).eq('id',id):base.from('pedidos').insert(payload);
+  const {error}=await consulta;
+  if(error){informarError(error);return;}
+  limpiarFormularioPedido();await sincronizar();alert(id?'Pedido actualizado.':'Pedido registrado.');
+}
+/* El filtro por mes usa la FECHA DE ENTREGA; los acumulados incluyen todos los meses. */
+let mesPedidosActual=fechaLocal().slice(0,7);
+let estadoPedidosActual='todos';
+const PEDIDOS_ACTIVOS=['pendiente','produccion','terminado'];
+function mesEtiqueta(valor){
+  const [y,m]=valor.split('-').map(Number);
+  return new Date(y,m-1,1).toLocaleDateString('es-BO',{month:'long',year:'numeric'});
+}
+function prepararMesesPedidos(){
+  const select=document.getElementById('mesPedidos');if(!select)return;
+  const meses=new Set([fechaLocal().slice(0,7),mesPedidosActual]);
+  datosPedidos.forEach(p=>{if(p.fecha_entrega)meses.add(p.fecha_entrega.slice(0,7));});
+  const lista=[...meses].sort().reverse();
+  select.replaceChildren();
+  const todos=document.createElement('option');todos.value='todos';todos.textContent='Todos los meses';select.appendChild(todos);
+  lista.forEach(m=>{const op=document.createElement('option');op.value=m;op.textContent=mesEtiqueta(m);select.appendChild(op);});
+  select.value=mesPedidosActual;
+}
+function seleccionarMesPedidos(mes){mesPedidosActual=mes;actualizarPedidos();}
+function cambiarMesPedidos(direccion){
+  const actual=mesPedidosActual==='todos'?fechaLocal().slice(0,7):mesPedidosActual;
+  const [y,m]=actual.split('-').map(Number);
+  const fecha=new Date(y,m-1+direccion,1);
+  mesPedidosActual=`${fecha.getFullYear()}-${String(fecha.getMonth()+1).padStart(2,'0')}`;
+  actualizarPedidos();
+}
+function filtrarEstadoPedido(estado){estadoPedidosActual=estado;actualizarPedidos();}
+async function cambiarEstadoPedido(id,nuevo,selector){
+  const p=datosPedidos.find(x=>String(x.id)===String(id));if(!p||p.estado===nuevo)return;
+  if(!await verificarConexion()){selector.value=p.estado;return;}
+  const {error}=await base.from('pedidos').update({estado:nuevo,actualizado_en:new Date().toISOString()}).eq('id',id);
+  if(error){informarError(error);selector.value=p.estado;return;}
+  await sincronizar();
+}
+function mostrarDetallePedido(id,boton){
+  const fila=boton.closest('tr');const siguiente=fila.nextElementSibling;
+  if(siguiente?.classList.contains('pedido-detalle')){siguiente.remove();return;}
+  const p=datosPedidos.find(x=>String(x.id)===String(id));if(!p)return;
+  const tr=document.createElement('tr');tr.className='pedido-detalle';
+  const td=document.createElement('td');td.colSpan=8;
+  const caja=document.createElement('div');caja.className='pedido-detalle-grid';
+  const detalles=[['Cliente',p.cliente],['Contacto',p.contacto||'Sin registrar'],['Descripción',p.descripcion],['Cantidad',p.cantidad],['Entrega',p.fecha_entrega],['Observaciones',p.notas||'Sin observaciones'],['Registrado',p.creado_en?new Date(p.creado_en).toLocaleString('es-BO'):'—'],['Saldo pendiente',dinero(Number(p.precio_total)-Number(p.adelanto))]];
+  detalles.forEach(([etiqueta,valor])=>{const div=document.createElement('div');const strong=document.createElement('strong');strong.textContent=etiqueta+': ';div.appendChild(strong);div.appendChild(document.createTextNode(String(valor)));caja.appendChild(div);});
+  td.appendChild(caja);tr.appendChild(td);fila.after(tr);
+}
+function actualizarPedidos(){
+  const tbody=document.getElementById('tablaPedidos');if(!tbody)return;
   tbody.replaceChildren();
-
-  const datos = jornadas().slice().reverse();
-
-  if(!datos.length) {
-    agregarFilaVacia(tbody,6,"Todavía no existen registros.");
-    return;
-  }
-
-  datos.forEach(j=>{
-    const inicio = new Date(j.entrada);
-    const fin = j.salida ? new Date(j.salida) : null;
-
-    const ms = fin ? Math.max(0,fin-inicio) : 0;
-
-    const meta = metaDia(inicio);
-
-    const cumplimiento = !fin
-      ? "En curso"
-      : ms>=meta*3600000
-        ? "Cumplida"
-        : "Incompleta";
-
-    agregarFila(tbody,[
-      socios[j.socio]?.nombre || "Socio",
-      j.fecha,
-      horaLocal(j.entrada),
-      fin ? horaLocal(fin) : "Pendiente",
-      fin ? duracion(ms) : "En curso",
-      cumplimiento
-    ]);
+  prepararMesesPedidos();
+  const mensaje=document.getElementById('mensajePedidos');
+  if(!pedidosDisponibles){mensaje.textContent='La tabla pedidos aún no está disponible. Sigue la guía de configuración de Supabase.';return;}
+  mensaje.textContent='Los pedidos entregados y cancelados se conservan. Los importes de pedidos no alteran la caja fuerte.';
+  const hoy=fechaLocal(),enDos=new Date();enDos.setDate(enDos.getDate()+2);const limite=fechaLocal(enDos);
+  const activos=datosPedidos.filter(p=>PEDIDOS_ACTIVOS.includes(p.estado));
+  document.getElementById('pedidosActivos').textContent=activos.length;
+  document.getElementById('pedidosProximos').textContent=activos.filter(p=>p.fecha_entrega>=hoy&&p.fecha_entrega<=limite).length;
+  document.getElementById('pedidosAtrasados').textContent=activos.filter(p=>p.fecha_entrega<hoy).length;
+  const mes=mesPedidosActual;
+  const delMes=datosPedidos.filter(p=>mes==='todos'||p.fecha_entrega?.slice(0,7)===mes);
+  document.querySelectorAll('#tabsPedidos button').forEach(b=>{
+    const estado=b.dataset.estado;
+    const n=estado==='acumulados'?activos.length:estado==='todos'?delMes.length:delMes.filter(p=>p.estado===estado).length;
+    b.querySelector('span').textContent=`(${n})`;
+    b.classList.toggle('active',estado===estadoPedidosActual);
+    b.setAttribute('aria-pressed',String(estado===estadoPedidosActual));
+  });
+  const busqueda=document.getElementById('buscarPedidos').value.trim().toLocaleLowerCase('es');
+  const baseFiltro=estadoPedidosActual==='acumulados'?activos:delMes;
+  const visibles=baseFiltro.filter(p=>(estadoPedidosActual==='todos'||estadoPedidosActual==='acumulados'||p.estado===estadoPedidosActual)&&(!busqueda||[p.cliente,p.descripcion,p.contacto,p.notas].some(x=>String(x||'').toLocaleLowerCase('es').includes(busqueda))));
+  visibles.sort((a,b)=>String(a.fecha_entrega).localeCompare(String(b.fecha_entrega))||String(a.cliente).localeCompare(String(b.cliente)));
+  document.getElementById('resumenFiltroPedidos').textContent=`${visibles.length} pedido(s) · ${estadoPedidosActual==='acumulados'?'Todos los meses — pendientes acumulados':mes==='todos'?'Todos los meses':mesEtiqueta(mes)} · Ordenados por fecha de entrega`;
+  if(!visibles.length){agregarFilaVacia(tbody,8,'No hay pedidos que coincidan con estos filtros.');return;}
+  visibles.forEach(p=>{
+    const tr=document.createElement('tr');
+    const vencido=PEDIDOS_ACTIVOS.includes(p.estado)&&p.fecha_entrega<hoy;
+    const proximo=PEDIDOS_ACTIVOS.includes(p.estado)&&p.fecha_entrega>=hoy&&p.fecha_entrega<=limite;
+    const vals=[`${p.cliente} — ${p.descripcion}`,p.fecha_entrega,socios[p.responsable]?.nombre||p.responsable];
+    vals.forEach((valor,i)=>{const td=document.createElement('td');td.textContent=valor;if(i===1&&(vencido||proximo)){td.className=vencido?'pedido-urgente':'pedido-proximo';td.textContent+=vencido?' · ATRASADO':' · PRÓXIMO';}tr.appendChild(td);});
+    const tdEstado=document.createElement('td'),select=document.createElement('select');select.className='pedido-estado';select.setAttribute('aria-label','Estado del pedido de '+p.cliente);
+    Object.entries(ESTADOS_PEDIDO).forEach(([valor,etiqueta])=>{const op=document.createElement('option');op.value=valor;op.textContent=etiqueta;select.appendChild(op);});
+    select.value=p.estado;select.addEventListener('change',()=>cambiarEstadoPedido(p.id,select.value,select));tdEstado.appendChild(select);tr.appendChild(tdEstado);
+    [dinero(p.precio_total),dinero(p.adelanto),dinero(Number(p.precio_total)-Number(p.adelanto))].forEach(valor=>{const td=document.createElement('td');td.textContent=valor;tr.appendChild(td);});
+    const td=document.createElement('td');td.className='row';
+    const ver=document.createElement('button');ver.className='btn btn-secondary';ver.textContent='Detalles';ver.type='button';ver.addEventListener('click',()=>mostrarDetallePedido(p.id,ver));td.appendChild(ver);
+    const editar=document.createElement('button');editar.className='btn btn-secondary';editar.textContent='Editar';editar.type='button';editar.addEventListener('click',()=>editarPedido(p.id));td.appendChild(editar);
+    tr.appendChild(td);tbody.appendChild(tr);
   });
 }
 
@@ -1348,6 +1571,7 @@ function actualizarTodo() {
   actualizarHistorialHoras();
   actualizarCaja();
   actualizarHistorialCaja();
+  actualizarPedidos();
 }
 
 setInterval(()=>{
