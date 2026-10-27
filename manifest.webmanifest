@@ -1,0 +1,19 @@
+{
+  "name": "ARKO 3D Studio - Gestión Empresarial",
+  "short_name": "ARKO 3D",
+  "description": "Sistema de gestión empresarial de ARKO 3D Studio",
+  "start_url": "/arko-3d-studio/",
+  "scope": "/arko-3d-studio/",
+  "display": "standalone",
+  "background_color": "#0b0d12",
+  "theme_color": "#11141c",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "logo-arko.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
