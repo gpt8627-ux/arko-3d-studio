@@ -5,6 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <title>ARKO 3D Studio | Gestión Empresarial</title>
+<link rel="manifest" href="./manifest.webmanifest">
+<meta name="theme-color" content="#0b0d12">
+<meta name="application-name" content="ARKO 3D Studio">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ARKO">
+<link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png">
+<link rel="apple-touch-icon" href="./icon-192.png">
 
 <style>
 :root {
@@ -531,6 +539,9 @@ footer {
 .month-table tr.week-surplus .month-week-progress>span{background:#79c7a7}
 @media(max-width:780px){.month-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.month-summary-value{font-size:19px}.month-table{min-width:800px}}
 @media(max-width:380px){.month-summary-grid{gap:8px}.month-summary-item{padding:12px}}
+/* Privacidad visual del saldo en la central */
+.saldo-privado{filter:blur(9px);user-select:none;-webkit-user-select:none;pointer-events:none}
+.saldo-control{margin-top:10px;padding:8px 12px;font-size:12px;min-height:38px}
 </style>
   <link rel="apple-touch-icon" sizes="180x180" href="./logo-arko.png">
 <link rel="icon" type="image/png" href="./logo-arko.png">
@@ -682,7 +693,8 @@ footer {
 
         <div class="card">
           <div class="metric-title">Saldo de caja fuerte</div>
-          <div class="metric" id="saldoPanel">Bs 0,00</div>
+          <div class="metric saldo-privado" id="saldoPanel">Bs 0,00</div>
+          <button type="button" class="btn btn-secondary saldo-control" onclick="alternarVisibilidadSaldo()" aria-label="Mostrar saldo de caja fuerte" aria-pressed="false">◉ Mostrar saldo</button>
           <div class="small">Saldo de caja fuerte</div>
         </div>
 
@@ -934,7 +946,8 @@ footer {
 
         <div class="card">
           <p class="metric-title">Saldo disponible</p>
-          <div class="metric" id="saldoCaja">Bs 0,00</div>
+          <div class="metric saldo-privado" id="saldoCaja">Bs 0,00</div>
+          <button type="button" class="btn btn-secondary saldo-control" onclick="alternarVisibilidadSaldo()" aria-label="Mostrar saldo de caja fuerte" aria-pressed="false">◉ Mostrar saldo</button>
         </div>
 
         <div class="card">
@@ -1112,6 +1125,22 @@ footer {
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 
+/* PRIVACIDAD VISUAL: el saldo se oculta al iniciar cada sesión.
+   Solo afecta a la pantalla; no altera valores ni datos de Supabase. */
+let saldoVisible=false;
+function aplicarVisibilidadSaldo(){
+  ['saldoPanel','saldoCaja'].forEach(id=>{
+    const elemento=document.getElementById(id);
+    if(elemento)elemento.classList.toggle('saldo-privado',!saldoVisible);
+  });
+  document.querySelectorAll('.saldo-control').forEach(boton=>{
+    boton.textContent=saldoVisible?'◉ Ocultar saldo':'◉ Mostrar saldo';
+    boton.setAttribute('aria-label',saldoVisible?'Ocultar saldo de caja fuerte':'Mostrar saldo de caja fuerte');
+    boton.setAttribute('aria-pressed',String(saldoVisible));
+  });
+}
+function alternarVisibilidadSaldo(){saldoVisible=!saldoVisible;aplicarVisibilidadSaldo();}
+
 /* CONFIGURACIÓN DE SOCIOS */
 
 const socios = {
@@ -1236,6 +1265,7 @@ function ingresarConCodigo(){
   sincronizar().then(()=>{if(!sincronizacionActiva) informarError("No hay acceso a las tablas de Supabase con los permisos actuales.");});
 }
 function cerrarSesion(){
+  saldoVisible=false;aplicarVisibilidadSaldo();
   usuarioActual=null;
   document.getElementById('app').classList.add('hidden');
   document.getElementById('login').classList.remove('hidden');
@@ -1723,5 +1753,15 @@ setInterval(()=>{if(usuarioActual)sincronizar();},15000);
 
 </script>
 
+<script>
+// Instalación PWA: no altera la sincronización con Supabase ni almacena datos empresariales.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('./service-worker.js').catch(function (error) {
+      console.warn('No se pudo registrar el modo aplicación:', error);
+    });
+  });
+}
+</script>
 </body>
 </html>
